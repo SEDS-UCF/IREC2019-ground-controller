@@ -1,32 +1,38 @@
-import socketserver
-import time
+import socket
+import sys
+from fnv import fnv1a_32
 
-class LaunchCommanderListener(socketserver.BaseRequestHandler):
-	def handle(self):
-		while True:
-			# self.request is the TCP socket connected to the client
-			self.data = b''
-
-			while True:
-				incoming = self.request.recv(255)
-				self.data += incoming
-				if self.data[-1:] == b'\x04':
-					print("done.")
-					self.data = self.data[:-1]
-					break
-
-			print("{} wrote: {}".format(self.client_address[0], self.data))
-	#		print("Injecting artifical delay...")
-	#		time.sleep(5)
-
-			# just send back the same data, but upper-cased
-			self.request.sendall(self.data.upper())
-			print("Replied: ", self.data.upper())
+PORT = 8274
 
 if __name__ == "__main__":
-	PORT = 8274
+	server_address = ('', PORT)
 
-	socketserver.TCPServer.allow_reuse_address = True
+	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+		sock.bind(server_address)
+		print('Starting up on port {}...'.format(server_address[1]))
 
-	server = socketserver.TCPServer(("", PORT), LaunchCommanderListener)
-	server.serve_forever()
+		while True:
+			data, address = sock.recvfrom(4096)
+
+			print('Received {} bytes from {}: {}'.format(len(data), address, data))
+
+			if not data:
+				continue
+
+			in_hash = int.from_bytes(data[-4:], byteorder='big')
+			in_data = data[:-4]
+			print(in_data)
+			print(hex(in_hash))
+			print(hex(fnv1a_32(in_data)))
+
+			reply = ''
+
+			if in_hash != fnv1a_32(in_data):
+				reply = b'MISMATCH'
+				print("FNV mismatch!")
+			else:
+				reply = in_data
+				print("Good.")
+
+			sent = sock.sendto(reply, address)
+			print('Replied {} bytes back.'.format(sent))
