@@ -7,6 +7,8 @@ PORT = 8274
 if __name__ == "__main__":
 	server_address = ('', PORT)
 
+	print('LaunchController initialization!')
+
 	with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 		sock.bind(server_address)
 		print('Starting up on port {}...'.format(server_address[1]))
@@ -36,3 +38,5 @@ if __name__ == "__main__":
 
 			sent = sock.sendto(reply, address)
 			print('Replied {} bytes back.'.format(sent))
+
+		print('Server shutdown, goodbye!')
